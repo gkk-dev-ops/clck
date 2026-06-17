@@ -2,7 +2,7 @@ use crate::{
     audio::{AlarmPlayer, ResolvedSound},
     display::{DisplayEvent, TerminalSession},
     notification,
-    timer::Countdown,
+    timer::{Countdown, Stopwatch},
 };
 use anyhow::Result;
 use std::{
@@ -22,6 +22,58 @@ pub struct AlarmRequest {
     pub sound: ResolvedSound,
     pub notification: bool,
     pub target: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct StopwatchRequest {
+    pub title: Option<String>,
+    pub font: String,
+}
+
+pub fn run_stopwatch(request: StopwatchRequest) -> Result<Duration> {
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let signal = Arc::clone(&cancelled);
+    ctrlc::set_handler(move || signal.store(true, Ordering::SeqCst))?;
+
+    let terminal = TerminalSession::enter()?;
+    let mut watch = Stopwatch::new(Instant::now());
+    let mut displayed_second = None;
+    let mut last_paused = false;
+    loop {
+        let now = Instant::now();
+        let elapsed = watch.elapsed(now);
+        let paused = watch.is_paused();
+        let current_second = elapsed.as_secs();
+        if displayed_second != Some(current_second) || paused != last_paused {
+            terminal.render_stopwatch(
+                elapsed,
+                &request.font,
+                request.title.as_deref(),
+                paused,
+            )?;
+            displayed_second = Some(current_second);
+            last_paused = paused;
+        }
+        if cancelled.load(Ordering::SeqCst) {
+            break;
+        }
+        match TerminalSession::next_event(Duration::from_millis(100), false)? {
+            DisplayEvent::Cancel => break,
+            DisplayEvent::Resize => displayed_second = None,
+            DisplayEvent::TogglePause => {
+                let now = Instant::now();
+                if watch.is_paused() {
+                    watch.resume(now);
+                } else {
+                    watch.pause(now);
+                }
+                displayed_second = None;
+            }
+            _ => {}
+        }
+    }
+    drop(terminal);
+    Ok(watch.elapsed(Instant::now()))
 }
 
 pub fn run_alarm(request: AlarmRequest) -> Result<()> {
