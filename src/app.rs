@@ -45,12 +45,7 @@ pub fn run_stopwatch(request: StopwatchRequest) -> Result<Duration> {
         let paused = watch.is_paused();
         let current_second = elapsed.as_secs();
         if displayed_second != Some(current_second) || paused != last_paused {
-            terminal.render_stopwatch(
-                elapsed,
-                &request.font,
-                request.title.as_deref(),
-                paused,
-            )?;
+            terminal.render_stopwatch(elapsed, &request.font, request.title.as_deref(), paused)?;
             displayed_second = Some(current_second);
             last_paused = paused;
         }

@@ -138,8 +138,14 @@ mod tests {
     fn stopwatch_counts_up() {
         let start = Instant::now();
         let watch = Stopwatch::new(start);
-        assert_eq!(watch.elapsed(start + Duration::from_secs(30)), Duration::from_secs(30));
-        assert_eq!(watch.elapsed(start + Duration::from_secs(90)), Duration::from_secs(90));
+        assert_eq!(
+            watch.elapsed(start + Duration::from_secs(30)),
+            Duration::from_secs(30)
+        );
+        assert_eq!(
+            watch.elapsed(start + Duration::from_secs(90)),
+            Duration::from_secs(90)
+        );
     }
 
     #[test]
@@ -149,7 +155,10 @@ mod tests {
         watch.pause(start + Duration::from_secs(10));
         assert!(watch.is_paused());
         // Elapsed should not advance while paused
-        assert_eq!(watch.elapsed(start + Duration::from_secs(30)), Duration::from_secs(10));
+        assert_eq!(
+            watch.elapsed(start + Duration::from_secs(30)),
+            Duration::from_secs(10)
+        );
     }
 
     #[test]
@@ -161,6 +170,9 @@ mod tests {
         watch.resume(resumed_at);
         assert!(!watch.is_paused());
         // 5 more seconds after resume → total elapsed = 10 + 5 = 15
-        assert_eq!(watch.elapsed(resumed_at + Duration::from_secs(5)), Duration::from_secs(15));
+        assert_eq!(
+            watch.elapsed(resumed_at + Duration::from_secs(5)),
+            Duration::from_secs(15)
+        );
     }
 }
