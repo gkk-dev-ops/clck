@@ -4,3 +4,5 @@ docs/superpowers/
 docs-site/node_modules/
 docs-site/.vitepress/cache/
 docs-site/.vitepress/dist/
+raw/
+dist/

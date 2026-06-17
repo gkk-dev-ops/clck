@@ -8,6 +8,13 @@ repository = "https://github.com/gkk-dev-ops/clck"
 readme = "README.md"
 keywords = ["alarm", "timer", "clock", "cli", "terminal"]
 categories = ["command-line-utilities"]
+exclude = [
+    "docs-site",
+    "scripts",
+    ".github",
+    "raw",
+    "dist",
+]
 
 [[bin]]
 name = "clck"
