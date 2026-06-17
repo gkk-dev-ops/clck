@@ -50,6 +50,7 @@ pub enum Command {
     },
     Fonts,
     Sounds,
+    Stopwatch,
 }
 
 pub struct ControllingTerminal {

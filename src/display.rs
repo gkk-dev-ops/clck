@@ -93,6 +93,31 @@ impl TerminalSession {
         render_lines(&lines, status.as_deref())
     }
 
+    pub fn render_stopwatch(
+        &self,
+        elapsed: Duration,
+        preferred_font: &str,
+        title: Option<&str>,
+        paused: bool,
+    ) -> Result<()> {
+        let (width, height) = terminal::size()?;
+        let text = format_elapsed(elapsed);
+        let catalog = FontCatalog::default();
+        let available = Size::new(width.saturating_sub(2), height.saturating_sub(4));
+        let lines = catalog
+            .largest_fit_preferring(preferred_font, &text, available)
+            .map(|font| font.render(&text))
+            .unwrap_or_else(|| vec![text]);
+
+        let status = stopwatch_status(title, paused);
+        let status = if status.chars().count() <= usize::from(width) {
+            Some(status)
+        } else {
+            None
+        };
+        render_lines(&lines, status.as_deref())
+    }
+
     pub fn render_ringing(&self, target: Option<&str>, title: Option<&str>) -> Result<()> {
         let status = match (title, target) {
             (Some(title), Some(target)) => {
@@ -138,6 +163,31 @@ pub fn format_duration(duration: Duration) -> String {
     }
 }
 
+pub fn format_elapsed(duration: Duration) -> String {
+    let seconds = duration.as_secs();
+    let hours = seconds / 3_600;
+    let minutes = (seconds % 3_600) / 60;
+    let secs = seconds % 60;
+    if hours > 0 {
+        format!("{hours:02}:{minutes:02}:{secs:02}")
+    } else {
+        format!("{minutes:02}:{secs:02}")
+    }
+}
+
+pub fn stopwatch_status(title: Option<&str>, paused: bool) -> String {
+    let mut parts = Vec::new();
+    if let Some(title) = title {
+        parts.push(format!("Title: {title}"));
+    }
+    if paused {
+        parts.push("PAUSED | Space to resume | q/Esc/Ctrl+C to stop".to_owned());
+    } else {
+        parts.push("Space to pause | q/Esc/Ctrl+C to stop".to_owned());
+    }
+    parts.join(" | ")
+}
+
 pub fn countdown_status(
     sound: &str,
     target: Option<&str>,
@@ -162,8 +212,9 @@ pub fn countdown_status(
 
 #[cfg(test)]
 mod tests {
-    use super::{countdown_status, event_from_key, DisplayEvent};
+    use super::{countdown_status, event_from_key, format_elapsed, stopwatch_status, DisplayEvent};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use std::time::Duration;
 
     #[test]
     fn maps_countdown_cancel_keys() {
@@ -182,6 +233,30 @@ mod tests {
         assert_eq!(
             event_from_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE), false),
             DisplayEvent::TogglePause
+        );
+    }
+
+    #[test]
+    fn format_elapsed_floors_to_whole_seconds() {
+        assert_eq!(format_elapsed(Duration::from_secs(0)), "00:00");
+        assert_eq!(format_elapsed(Duration::from_millis(999)), "00:00");
+        assert_eq!(format_elapsed(Duration::from_secs(65)), "01:05");
+        assert_eq!(format_elapsed(Duration::from_secs(3661)), "01:01:01");
+    }
+
+    #[test]
+    fn stopwatch_status_reflects_pause_state() {
+        assert_eq!(
+            stopwatch_status(None, false),
+            "Space to pause | q/Esc/Ctrl+C to stop"
+        );
+        assert_eq!(
+            stopwatch_status(None, true),
+            "PAUSED | Space to resume | q/Esc/Ctrl+C to stop"
+        );
+        assert_eq!(
+            stopwatch_status(Some("Build"), false),
+            "Title: Build | Space to pause | q/Esc/Ctrl+C to stop"
         );
     }
 

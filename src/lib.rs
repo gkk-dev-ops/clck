@@ -53,6 +53,14 @@ pub fn run() -> Result<()> {
                     println!("{name}: {}", path.display());
                 }
             }
+            cli::Command::Stopwatch => {
+                let elapsed = app::run_stopwatch(app::StopwatchRequest {
+                    title: cli.title,
+                    font: command_config.font,
+                })?;
+                println!("Elapsed: {}", display::format_elapsed(elapsed));
+                return Ok(());
+            }
             cli::Command::Config { show, reset } => {
                 if reset {
                     if Confirm::new("Reset saved clck settings?")
