@@ -63,7 +63,11 @@ impl TerminalSession {
         Ok(Self)
     }
 
-    pub fn next_event(timeout: Duration, ringing: bool, restart_key: Option<&str>) -> Result<DisplayEvent> {
+    pub fn next_event(
+        timeout: Duration,
+        ringing: bool,
+        restart_key: Option<&str>,
+    ) -> Result<DisplayEvent> {
         if !event::poll(timeout)? {
             return Ok(DisplayEvent::None);
         }
@@ -235,14 +239,21 @@ pub fn countdown_status(
 
 #[cfg(test)]
 mod tests {
-    use super::{countdown_status, event_from_key, format_elapsed, key_matches, stopwatch_status, DisplayEvent};
+    use super::{
+        countdown_status, event_from_key, format_elapsed, key_matches, stopwatch_status,
+        DisplayEvent,
+    };
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use std::time::Duration;
 
     #[test]
     fn maps_countdown_cancel_keys() {
         assert_eq!(
-            event_from_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE), false, None),
+            event_from_key(
+                KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE),
+                false,
+                None
+            ),
             DisplayEvent::Cancel
         );
         assert_eq!(
@@ -250,11 +261,19 @@ mod tests {
             DisplayEvent::Cancel
         );
         assert_eq!(
-            event_from_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE), true, None),
+            event_from_key(
+                KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+                true,
+                None
+            ),
             DisplayEvent::Dismiss
         );
         assert_eq!(
-            event_from_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE), false, None),
+            event_from_key(
+                KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+                false,
+                None
+            ),
             DisplayEvent::TogglePause
         );
     }
@@ -262,7 +281,11 @@ mod tests {
     #[test]
     fn restart_key_fires_restart_event() {
         assert_eq!(
-            event_from_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE), false, Some("r")),
+            event_from_key(
+                KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE),
+                false,
+                Some("r")
+            ),
             DisplayEvent::Restart
         );
         assert_eq!(
@@ -274,7 +297,11 @@ mod tests {
             DisplayEvent::Restart
         );
         assert_eq!(
-            event_from_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE), false, None),
+            event_from_key(
+                KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE),
+                false,
+                None
+            ),
             DisplayEvent::None
         );
     }

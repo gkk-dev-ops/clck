@@ -46,14 +46,24 @@ pub fn run_stopwatch(request: StopwatchRequest) -> Result<Duration> {
         let paused = watch.is_paused();
         let current_second = elapsed.as_secs();
         if displayed_second != Some(current_second) || paused != last_paused {
-            terminal.render_stopwatch(elapsed, &request.font, request.title.as_deref(), paused, &request.restart_key)?;
+            terminal.render_stopwatch(
+                elapsed,
+                &request.font,
+                request.title.as_deref(),
+                paused,
+                &request.restart_key,
+            )?;
             displayed_second = Some(current_second);
             last_paused = paused;
         }
         if cancelled.load(Ordering::SeqCst) {
             break;
         }
-        match TerminalSession::next_event(Duration::from_millis(100), false, Some(&request.restart_key))? {
+        match TerminalSession::next_event(
+            Duration::from_millis(100),
+            false,
+            Some(&request.restart_key),
+        )? {
             DisplayEvent::Cancel => break,
             DisplayEvent::Resize => displayed_second = None,
             DisplayEvent::Restart => {
