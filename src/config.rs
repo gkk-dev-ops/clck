@@ -20,6 +20,7 @@ pub struct Config {
     pub font: String,
     pub notification: bool,
     pub sound: SoundSetting,
+    pub restart_key: String,
 }
 
 impl Default for Config {
@@ -28,6 +29,7 @@ impl Default for Config {
             font: "standard".into(),
             notification: true,
             sound: SoundSetting::System("Glass".into()),
+            restart_key: "r".into(),
         }
     }
 }
@@ -79,6 +81,7 @@ impl Config {
             font: overrides.font.unwrap_or_else(|| self.font.clone()),
             notification: overrides.notification.unwrap_or(self.notification),
             sound: overrides.sound.unwrap_or_else(|| self.sound.clone()),
+            restart_key: self.restart_key.clone(),
         }
     }
 }
@@ -93,6 +96,7 @@ mod tests {
             font: "box".into(),
             notification: false,
             sound: SoundSetting::System("Glass".into()),
+            restart_key: "r".into(),
         };
         let resolved = saved.resolve(Overrides {
             font: Some("banner".into()),

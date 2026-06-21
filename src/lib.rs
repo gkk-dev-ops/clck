@@ -57,6 +57,7 @@ pub fn run() -> Result<()> {
                 let elapsed = app::run_stopwatch(app::StopwatchRequest {
                     title: cli.title,
                     font: command_config.font,
+                    restart_key: command_config.restart_key.clone(),
                 })?;
                 println!("Elapsed: {}", display::format_elapsed(elapsed));
                 return Ok(());
@@ -90,6 +91,7 @@ pub fn run() -> Result<()> {
             font: answers.font,
             notification: answers.notification,
             sound: answers.sound,
+            restart_key: config.restart_key.clone(),
         };
         if answers.save_defaults {
             effective.save()?;
@@ -107,19 +109,13 @@ fn run_direct_schedule(
 ) -> Result<()> {
     let Some(mut terminal) = cli::open_controlling_terminal() else {
         let candidate = schedule::parse_direct(&expression)?;
-        bail!(
-            "confirmation is required before starting an alarm; detected candidate: {} -> {}",
-            candidate.source,
-            candidate.display_target()
-        );
+        return start_scheduled_alarm(candidate, effective, title);
     };
 
-    let mut had_error = false;
     let candidate = loop {
         match schedule::parse_direct(&expression) {
             Ok(candidate) => break candidate,
             Err(error) => {
-                had_error = true;
                 writeln!(terminal.writer, "{error}")?;
                 write!(terminal.writer, "Enter another date and time: ")?;
                 terminal.writer.flush()?;
@@ -130,17 +126,11 @@ fn run_direct_schedule(
             }
         }
     };
-    if had_error {
-        if !cli::confirm_candidate(&candidate, &mut terminal.reader, &mut terminal.writer)? {
-            return Ok(());
-        }
-    } else {
-        writeln!(
-            terminal.writer,
-            "Starting alarm for {}.",
-            candidate.display_target()
-        )?;
-    }
+    writeln!(
+        terminal.writer,
+        "Starting alarm for {}.",
+        candidate.display_target()
+    )?;
     drop(terminal);
     start_scheduled_alarm(candidate, effective, title)
 }
