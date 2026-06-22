@@ -22,11 +22,33 @@ pub enum DisplayEvent {
     Dismiss,
     Resize,
     TogglePause,
+    Restart,
 }
 
-pub fn event_from_key(key: KeyEvent, ringing: bool) -> DisplayEvent {
+fn key_matches(key: KeyEvent, spec: &str) -> bool {
+    let (required_mods, ch_str) = if let Some(rest) = spec.strip_prefix("ctrl+") {
+        (KeyModifiers::CONTROL, rest)
+    } else {
+        (KeyModifiers::NONE, spec)
+    };
+    let mut chars = ch_str.chars();
+    let Some(c) = chars.next() else {
+        return false;
+    };
+    if chars.next().is_some() {
+        return false;
+    }
+    key.code == KeyCode::Char(c) && key.modifiers == required_mods
+}
+
+pub fn event_from_key(key: KeyEvent, ringing: bool, restart_key: Option<&str>) -> DisplayEvent {
     if ringing {
         return DisplayEvent::Dismiss;
+    }
+    if let Some(rk) = restart_key {
+        if key_matches(key, rk) {
+            return DisplayEvent::Restart;
+        }
     }
     match key.code {
         KeyCode::Char('q') | KeyCode::Esc => DisplayEvent::Cancel,
@@ -45,12 +67,16 @@ impl TerminalSession {
         Ok(Self)
     }
 
-    pub fn next_event(timeout: Duration, ringing: bool) -> Result<DisplayEvent> {
+    pub fn next_event(
+        timeout: Duration,
+        ringing: bool,
+        restart_key: Option<&str>,
+    ) -> Result<DisplayEvent> {
         if !event::poll(timeout)? {
             return Ok(DisplayEvent::None);
         }
         Ok(match event::read()? {
-            Event::Key(key) => event_from_key(key, ringing),
+            Event::Key(key) => event_from_key(key, ringing, restart_key),
             Event::Resize(_, _) => DisplayEvent::Resize,
             _ => DisplayEvent::None,
         })
@@ -99,6 +125,7 @@ impl TerminalSession {
         preferred_font: &str,
         title: Option<&str>,
         paused: bool,
+        restart_key: &str,
     ) -> Result<()> {
         let (width, height) = terminal::size()?;
         let text = format_elapsed(elapsed);
@@ -109,7 +136,7 @@ impl TerminalSession {
             .map(|font| font.render(&text))
             .unwrap_or_else(|| vec![text]);
 
-        let status = stopwatch_status(title, paused);
+        let status = stopwatch_status(title, paused, restart_key);
         let status = if status.chars().count() <= usize::from(width) {
             Some(status)
         } else {
@@ -175,15 +202,19 @@ pub fn format_elapsed(duration: Duration) -> String {
     }
 }
 
-pub fn stopwatch_status(title: Option<&str>, paused: bool) -> String {
+pub fn stopwatch_status(title: Option<&str>, paused: bool, restart_key: &str) -> String {
     let mut parts = Vec::new();
     if let Some(title) = title {
         parts.push(format!("Title: {title}"));
     }
     if paused {
-        parts.push("PAUSED | Space to resume | q/Esc/Ctrl+C to stop".to_owned());
+        parts.push(format!(
+            "PAUSED | Space to resume | {restart_key} to restart | q/Esc/Ctrl+C to stop"
+        ));
     } else {
-        parts.push("Space to pause | q/Esc/Ctrl+C to stop".to_owned());
+        parts.push(format!(
+            "Space to pause | {restart_key} to restart | q/Esc/Ctrl+C to stop"
+        ));
     }
     parts.join(" | ")
 }
@@ -212,28 +243,91 @@ pub fn countdown_status(
 
 #[cfg(test)]
 mod tests {
-    use super::{countdown_status, event_from_key, format_elapsed, stopwatch_status, DisplayEvent};
+    use super::{
+        countdown_status, event_from_key, format_elapsed, key_matches, stopwatch_status,
+        DisplayEvent,
+    };
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use std::time::Duration;
 
     #[test]
     fn maps_countdown_cancel_keys() {
         assert_eq!(
-            event_from_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE), false),
+            event_from_key(
+                KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE),
+                false,
+                None
+            ),
             DisplayEvent::Cancel
         );
         assert_eq!(
-            event_from_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), false),
+            event_from_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE), false, None),
             DisplayEvent::Cancel
         );
         assert_eq!(
-            event_from_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE), true),
+            event_from_key(
+                KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+                true,
+                None
+            ),
             DisplayEvent::Dismiss
         );
         assert_eq!(
-            event_from_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE), false),
+            event_from_key(
+                KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+                false,
+                None
+            ),
             DisplayEvent::TogglePause
         );
+    }
+
+    #[test]
+    fn restart_key_fires_restart_event() {
+        assert_eq!(
+            event_from_key(
+                KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE),
+                false,
+                Some("r")
+            ),
+            DisplayEvent::Restart
+        );
+        assert_eq!(
+            event_from_key(
+                KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL),
+                false,
+                Some("ctrl+r")
+            ),
+            DisplayEvent::Restart
+        );
+        assert_eq!(
+            event_from_key(
+                KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE),
+                false,
+                None
+            ),
+            DisplayEvent::None
+        );
+    }
+
+    #[test]
+    fn key_matches_plain_and_ctrl() {
+        assert!(key_matches(
+            KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE),
+            "r"
+        ));
+        assert!(!key_matches(
+            KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL),
+            "r"
+        ));
+        assert!(key_matches(
+            KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL),
+            "ctrl+r"
+        ));
+        assert!(!key_matches(
+            KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE),
+            "ctrl+r"
+        ));
     }
 
     #[test]
@@ -247,16 +341,20 @@ mod tests {
     #[test]
     fn stopwatch_status_reflects_pause_state() {
         assert_eq!(
-            stopwatch_status(None, false),
-            "Space to pause | q/Esc/Ctrl+C to stop"
+            stopwatch_status(None, false, "r"),
+            "Space to pause | r to restart | q/Esc/Ctrl+C to stop"
         );
         assert_eq!(
-            stopwatch_status(None, true),
-            "PAUSED | Space to resume | q/Esc/Ctrl+C to stop"
+            stopwatch_status(None, true, "r"),
+            "PAUSED | Space to resume | r to restart | q/Esc/Ctrl+C to stop"
         );
         assert_eq!(
-            stopwatch_status(Some("Build"), false),
-            "Title: Build | Space to pause | q/Esc/Ctrl+C to stop"
+            stopwatch_status(Some("Build"), false, "r"),
+            "Title: Build | Space to pause | r to restart | q/Esc/Ctrl+C to stop"
+        );
+        assert_eq!(
+            stopwatch_status(None, false, "ctrl+r"),
+            "Space to pause | ctrl+r to restart | q/Esc/Ctrl+C to stop"
         );
     }
 

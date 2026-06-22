@@ -25,9 +25,10 @@ impl Candidate {
 
     pub fn display_target(&self) -> String {
         format!(
-            "{} ({})",
-            self.target.format("%Y-%m-%d %H:%M:%S %:z"),
-            self.timezone
+            "{} ({} {})",
+            self.target.format("%Y-%m-%d %H:%M"),
+            self.timezone,
+            self.target.format("%:z")
         )
     }
 }
@@ -204,7 +205,12 @@ fn parse_time(input: &str) -> Option<NaiveTime> {
         (input, None)
     };
     if suffix.is_none() && !clock.contains(':') {
-        return None;
+        let hour: u32 = clock.parse().ok()?;
+        return if hour < 24 {
+            NaiveTime::from_hms_opt(hour, 0, 0)
+        } else {
+            None
+        };
     }
     let mut parts = clock.split(':');
     let mut hour: u32 = parts.next()?.trim().parse().ok()?;
@@ -277,7 +283,7 @@ mod tests {
         let candidate = Candidate::new("tomorrow at 9am", fixed(9, 0), "Europe/Warsaw");
         assert_eq!(
             candidate.display_target(),
-            "2026-06-10 09:00:00 +02:00 (Europe/Warsaw)"
+            "2026-06-10 09:00 (Europe/Warsaw +02:00)"
         );
     }
 
@@ -290,6 +296,9 @@ mod tests {
             ("today at 9 AM", 10, 9, 0),
             ("tomorrow at 9am", 11, 9, 0),
             ("June 12 at 09:00", 12, 9, 0),
+            ("11", 10, 11, 0),
+            ("11am", 10, 11, 0),
+            ("11 a.m.", 10, 11, 0),
         ] {
             let candidate = parse_direct_in(input, context_now(), New_York).unwrap();
             assert_eq!(candidate.target.day(), expected_day);

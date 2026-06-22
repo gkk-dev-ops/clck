@@ -28,6 +28,7 @@ pub struct AlarmRequest {
 pub struct StopwatchRequest {
     pub title: Option<String>,
     pub font: String,
+    pub restart_key: String,
 }
 
 pub fn run_stopwatch(request: StopwatchRequest) -> Result<Duration> {
@@ -45,16 +46,31 @@ pub fn run_stopwatch(request: StopwatchRequest) -> Result<Duration> {
         let paused = watch.is_paused();
         let current_second = elapsed.as_secs();
         if displayed_second != Some(current_second) || paused != last_paused {
-            terminal.render_stopwatch(elapsed, &request.font, request.title.as_deref(), paused)?;
+            terminal.render_stopwatch(
+                elapsed,
+                &request.font,
+                request.title.as_deref(),
+                paused,
+                &request.restart_key,
+            )?;
             displayed_second = Some(current_second);
             last_paused = paused;
         }
         if cancelled.load(Ordering::SeqCst) {
             break;
         }
-        match TerminalSession::next_event(Duration::from_millis(100), false)? {
+        match TerminalSession::next_event(
+            Duration::from_millis(100),
+            false,
+            Some(&request.restart_key),
+        )? {
             DisplayEvent::Cancel => break,
             DisplayEvent::Resize => displayed_second = None,
+            DisplayEvent::Restart => {
+                let now = Instant::now();
+                watch = Stopwatch::new(now);
+                displayed_second = None;
+            }
             DisplayEvent::TogglePause => {
                 let now = Instant::now();
                 if watch.is_paused() {
@@ -103,7 +119,7 @@ pub fn run_alarm(request: AlarmRequest) -> Result<()> {
         if cancelled.load(Ordering::SeqCst) {
             return Ok(());
         }
-        match TerminalSession::next_event(Duration::from_millis(100), false)? {
+        match TerminalSession::next_event(Duration::from_millis(100), false, None)? {
             DisplayEvent::Cancel => return Ok(()),
             DisplayEvent::Resize => displayed_second = None,
             DisplayEvent::TogglePause => {
@@ -127,7 +143,7 @@ pub fn run_alarm(request: AlarmRequest) -> Result<()> {
     let mut last_bell = Instant::now();
     loop {
         if cancelled.load(Ordering::SeqCst)
-            || TerminalSession::next_event(Duration::from_millis(100), true)?
+            || TerminalSession::next_event(Duration::from_millis(100), true, None)?
                 == DisplayEvent::Dismiss
         {
             break;
