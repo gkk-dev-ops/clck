@@ -31,9 +31,13 @@ fn key_matches(key: KeyEvent, spec: &str) -> bool {
     } else {
         (KeyModifiers::NONE, spec)
     };
-    let Some(c) = ch_str.chars().next() else {
+    let mut chars = ch_str.chars();
+    let Some(c) = chars.next() else {
         return false;
     };
+    if chars.next().is_some() {
+        return false;
+    }
     key.code == KeyCode::Char(c) && key.modifiers == required_mods
 }
 

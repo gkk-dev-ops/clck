@@ -106,6 +106,7 @@ mod tests {
         assert_eq!(resolved.font, "banner");
         assert!(resolved.notification);
         assert_eq!(resolved.sound, SoundSetting::System("Glass".into()));
+        assert_eq!(resolved.restart_key, "r");
     }
 
     #[test]
