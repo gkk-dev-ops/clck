@@ -18,6 +18,20 @@ hero:
 
 <TerminalTimer />
 
+## Watch clck in action
+
+<div class="video-embed">
+  <iframe
+    src="https://www.youtube-nocookie.com/embed/5Mw-9Tpej78"
+    title="clck terminal countdown alarm demo"
+    loading="lazy"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowfullscreen
+  ></iframe>
+</div>
+
+[Watch the short demo](https://www.youtube.com/shorts/fwHKI4ZYo0w) · [View on crates.io](https://crates.io/crates/clck)
+
 ## Install
 
 ::: code-group
