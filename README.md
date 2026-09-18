@@ -7,6 +7,13 @@ Read the full documentation at
 
 Officially supported on macOS and Linux. Windows support is best-effort.
 
+## Demo
+
+- [Watch the full clck demo on YouTube](https://www.youtube.com/watch?v=5Mw-9Tpej78)
+- [Watch the clck Short](https://www.youtube.com/shorts/fwHKI4ZYo0w)
+- [View the documentation site](https://gkk-dev-ops.github.io/clck/)
+- [View clck on crates.io](https://crates.io/crates/clck)
+
 ## Installation
 
 Cargo/crates.io is the best option for Rust users:
